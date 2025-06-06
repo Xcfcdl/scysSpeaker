@@ -1,0 +1,38 @@
+{
+  "name": "生财有术朗读助手",
+  "version": "1.0",
+  "description": "为生财有术网站提供贴文朗读功能",
+  "manifest_version": 3,
+  "permissions": [
+    "storage",
+    "tts",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://scys.com/*",
+    "https://doubaospeaker-jrmsgzz7y-xcfcdls-projects.vercel.app/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://scys.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+} 
