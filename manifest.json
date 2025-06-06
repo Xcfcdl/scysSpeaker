@@ -1,7 +1,7 @@
 {
   "name": "生财有术朗读助手",
-  "version": "1.1",
-  "description": "为生财有术网站提供贴文朗读功能，支持豆包TTS",
+  "version": "1.2",
+  "description": "为生财有术网站提供贴文朗读功能，支持豆包TTS和WebSocket流式播放",
   "manifest_version": 3,
   "permissions": [
     "storage",
