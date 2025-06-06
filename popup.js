@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const ttsAppid = document.getElementById('tts-appid');
   const websocketModeGroup = document.getElementById('websocket-mode-group');
   const websocketMode = document.getElementById('websocket-mode');
+  const concurrentModeGroup = document.getElementById('concurrent-mode-group');
+  const concurrentMode = document.getElementById('concurrent-mode');
 
   // 判断是否豆包TTS音色
   function isDoubaoVoiceType(val) {
@@ -30,10 +32,26 @@ document.addEventListener('DOMContentLoaded', function() {
       emotionGroup.style.display = '';
       customVoiceGroup.style.display = '';
       websocketModeGroup.style.display = '';
+      updateConcurrentModeVisibility();
     } else {
       emotionGroup.style.display = 'none';
       customVoiceGroup.style.display = 'none';
       websocketModeGroup.style.display = 'none';
+      concurrentModeGroup.style.display = 'none';
+    }
+  }
+
+  // 根据WebSocket模式显示/隐藏并发模式选项
+  function updateConcurrentModeVisibility() {
+    if (isDoubaoVoiceType(voiceType.value)) {
+      // WebSocket模式下隐藏并发模式选项，因为WebSocket本身就是流式的
+      if (websocketMode.value === 'true') {
+        concurrentModeGroup.style.display = 'none';
+      } else {
+        concurrentModeGroup.style.display = '';
+      }
+    } else {
+      concurrentModeGroup.style.display = 'none';
     }
   }
 
@@ -47,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
     customVoiceType: '',
     ttsToken: '',
     ttsAppid: '',
-    websocketMode: false
+    websocketMode: false,
+    concurrentMode: true
   }, function(items) {
     voiceType.value = items.voiceType;
     rate.value = items.rate;
@@ -60,11 +79,15 @@ document.addEventListener('DOMContentLoaded', function() {
     ttsToken.value = items.ttsToken || '';
     ttsAppid.value = items.ttsAppid || '';
     websocketMode.value = items.websocketMode ? 'true' : 'false';
+    concurrentMode.value = items.concurrentMode ? 'true' : 'false';
     updateDoubaoFields();
   });
 
   // 音色切换时动态显示/隐藏
   voiceType.addEventListener('change', updateDoubaoFields);
+
+  // WebSocket模式切换时更新并发模式显示
+  websocketMode.addEventListener('change', updateConcurrentModeVisibility);
 
   // 更新滑块值显示
   rate.addEventListener('input', function() {
@@ -91,7 +114,8 @@ document.addEventListener('DOMContentLoaded', function() {
       customVoiceType: customVoiceType.value.trim(),
       ttsToken: ttsToken.value.trim(),
       ttsAppid: ttsAppid.value.trim(),
-      websocketMode: websocketMode.value === 'true'
+      websocketMode: websocketMode.value === 'true',
+      concurrentMode: concurrentMode.value === 'true'
     }, function() {
       // 更新状态
       status.textContent = '设置已保存';

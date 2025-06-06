@@ -138,12 +138,25 @@
   <div class="form-group" id="websocket-mode-group" style="display:none;">
     <label for="websocket-mode">豆包TTS模式:</label>
     <select id="websocket-mode">
-      <option value="false">HTTP模式（推荐）</option>
-      <option value="true">WebSocket模式（流式）</option>
+      <option value="false">HTTP模式（分句播放）</option>
+      <option value="true">WebSocket模式（整段流式）</option>
     </select>
     <div style="font-size:11px; color:#666; margin-top:4px;">
-      HTTP模式：简单稳定，适合短文本<br>
-      WebSocket模式：流式合成，适合长文本
+      HTTP模式：分句请求播放，支持三段式并发<br>
+      WebSocket模式：整段文本流式传输，语音更连贯（实验性）
+    </div>
+  </div>
+
+  <div class="form-group" id="concurrent-mode-group" style="display:none;">
+    <label for="concurrent-mode">播放模式（仅HTTP模式）:</label>
+    <select id="concurrent-mode">
+      <option value="true">三段式并发播放（推荐）</option>
+      <option value="false">串行播放（传统模式）</option>
+    </select>
+    <div style="font-size:11px; color:#666; margin-top:4px;">
+      三段式并发：播放一句，准备一句，请求一句，无缝衔接<br>
+      串行播放：逐句请求播放，可能有停顿<br>
+      注意：WebSocket模式自动使用整段流式播放
     </div>
   </div>
   

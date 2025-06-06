@@ -5,7 +5,8 @@ let settings = {
   pitch: 1.0,
   autoNext: true,
   emotion: 'neutral',
-  customVoiceType: ''
+  customVoiceType: '',
+  concurrentMode: true // 是否启用三段式并发播放
 };
 let isPlaying = false;
 let isPaused = false;
@@ -20,6 +21,11 @@ let configBtn;
 let speechSynthesis = window.speechSynthesis;
 let utterance = null;
 let audio = null; // 用于豆包TTS的全局audio对象
+
+// 三段式并发播放相关变量
+let audioQueue = []; // 音频队列：存储已准备好的音频数据
+let isRequestingAudio = false; // 是否正在请求音频
+let maxQueueSize = 3; // 最大队列大小（预加载句子数量）
 
 // 初始化
 function init() {
@@ -182,6 +188,10 @@ function startReading() {
   sentences = splitIntoSentences(text);
   currentSentenceIndex = 0;
 
+  // 初始化三段式并发播放状态
+  audioQueue = [];
+  isRequestingAudio = false;
+
   updateStatus(`正在朗读: ${authorInfo ? authorInfo : '未知作者'}`);
   readNextSentence();
 }
@@ -234,6 +244,11 @@ function stopReading() {
     audio.currentTime = 0;
     audio = null;
   }
+
+  // 清理三段式并发播放的状态
+  audioQueue = [];
+  isRequestingAudio = false;
+
   isPlaying = false;
   isPaused = false;
   floatBtn.innerHTML = '▶';
@@ -243,7 +258,7 @@ function stopReading() {
   updateStatus('已停止朗读');
 }
 
-// 朗读下一句
+// 朗读下一句（三段式并发版本）
 function readNextSentence() {
   if (currentSentenceIndex >= sentences.length) {
     // 当前帖子朗读完毕
@@ -263,25 +278,24 @@ function readNextSentence() {
     return;
   }
 
-  const sentence = sentences[currentSentenceIndex];
-
   // 判断是否为豆包TTS
   if (settings.voiceType && settings.voiceType.startsWith('zh_')) {
-    // 使用豆包TTS
-    fetchDoubaoTTS(sentence, settings.voiceType, settings.rate, settings.pitch, settings.emotion).then(base64Audio => {
-      playAudioFromBase64(base64Audio, () => {
-        currentSentenceIndex++;
-        readNextSentence();
-      });
-    }).catch(err => {
-      console.error('豆包TTS错误:', err);
-      currentSentenceIndex++;
-      readNextSentence();
-    });
+    // 如果启用WebSocket模式，使用整段文本流式播放
+    if (settings.websocketMode) {
+      readWithWebSocketMode();
+    } else {
+      // 根据配置决定是否使用三段式并发播放
+      if (settings.concurrentMode) {
+        readNextSentenceWithQueue();
+      } else {
+        readNextSentenceSerial();
+      }
+    }
     return;
   }
 
-  // 默认用原生TTS
+  // 默认用原生TTS（保持原有逻辑）
+  const sentence = sentences[currentSentenceIndex];
   utterance = new SpeechSynthesisUtterance(sentence);
   utterance.rate = settings.rate;
   utterance.pitch = settings.pitch;
@@ -307,6 +321,163 @@ function readNextSentence() {
     readNextSentence();
   };
   speechSynthesis.speak(utterance);
+}
+
+// WebSocket模式：整段文本流式播放
+function readWithWebSocketMode() {
+  // 获取当前帖子的完整文本（不分句）
+  const post = posts[currentPostIndex];
+  const authorElement = post.querySelector('div.post-item-top-right div span.name');
+  const authorIdentity = post.querySelector('div.post-item-top-right div span.identity');
+  const contentElement = post.querySelector('div.post-content.preview');
+
+  let authorInfo = '';
+  if (authorElement) {
+    authorInfo += `作者: ${authorElement.textContent}`;
+    if (authorIdentity) {
+      authorInfo += `, ${authorIdentity.textContent}`;
+    }
+    authorInfo += '. ';
+  }
+
+  const fullText = authorInfo + contentElement.innerText;
+
+  // 根据设置选择TTS模式
+  const ttsPromise = settings.websocketMode
+    ? fetchDoubaoTTSViaBackground(fullText, settings.voiceType, settings.rate, settings.pitch, settings.emotion, true)
+    : fetchDoubaoTTSViaBackground(fullText, settings.voiceType, settings.rate, settings.pitch, settings.emotion, false);
+
+  ttsPromise.then(base64Audio => {
+      playAudioFromBase64(base64Audio, () => {
+        // 整段播放完成，移动到下一篇帖子
+        if (currentPostIndex < posts.length - 1) {
+          currentPostIndex++;
+          setTimeout(() => startReading(), 1000);
+        } else {
+          // 所有帖子都朗读完毕
+          if (settings.autoNext) {
+            goToNextPage();
+          } else {
+            stopReading();
+            updateStatus('所有内容已朗读完毕');
+          }
+        }
+      });
+    })
+    .catch(err => {
+      console.error('豆包TTS WebSocket错误:', err);
+      updateStatus('WebSocket模式播放失败: ' + err);
+      // 错误时跳到下一篇
+      if (currentPostIndex < posts.length - 1) {
+        currentPostIndex++;
+        setTimeout(() => startReading(), 1000);
+      } else {
+        stopReading();
+      }
+    });
+}
+
+// 串行播放豆包TTS（原有逻辑）
+function readNextSentenceSerial() {
+  const sentence = sentences[currentSentenceIndex];
+
+  fetchDoubaoTTS(sentence, settings.voiceType, settings.rate, settings.pitch, settings.emotion).then(base64Audio => {
+    playAudioFromBase64(base64Audio, () => {
+      currentSentenceIndex++;
+      readNextSentence();
+    });
+  }).catch(err => {
+    console.error('豆包TTS错误:', err);
+    currentSentenceIndex++;
+    readNextSentence();
+  });
+}
+
+// 三段式并发播放：播放一句，准备一句，请求一句
+function readNextSentenceWithQueue() {
+  // 启动预加载
+  preloadAudioQueue();
+
+  // 播放队列中的下一个音频
+  playNextFromQueue();
+}
+
+// 预加载音频队列
+function preloadAudioQueue() {
+  // 计算需要预加载的句子范围
+  const startIndex = currentSentenceIndex;
+  const endIndex = Math.min(startIndex + maxQueueSize, sentences.length);
+
+  for (let i = startIndex; i < endIndex; i++) {
+    // 检查是否已经在队列中或正在请求
+    const existsInQueue = audioQueue.some(item => item.index === i);
+    if (!existsInQueue && !isRequestingAudio) {
+      requestAudioForSentence(i);
+      break; // 一次只请求一个，避免并发过多
+    }
+  }
+}
+
+// 为指定句子请求音频
+function requestAudioForSentence(sentenceIndex) {
+  if (sentenceIndex >= sentences.length) return;
+
+  isRequestingAudio = true;
+  const sentence = sentences[sentenceIndex];
+
+  fetchDoubaoTTS(sentence, settings.voiceType, settings.rate, settings.pitch, settings.emotion)
+    .then(base64Audio => {
+      // 将音频添加到队列
+      audioQueue.push({
+        index: sentenceIndex,
+        audio: base64Audio,
+        sentence: sentence
+      });
+
+      // 按索引排序队列
+      audioQueue.sort((a, b) => a.index - b.index);
+
+      isRequestingAudio = false;
+
+      // 继续预加载下一个
+      setTimeout(() => preloadAudioQueue(), 100);
+    })
+    .catch(err => {
+      console.error('豆包TTS错误:', err);
+      isRequestingAudio = false;
+
+      // 错误时跳过这句，继续下一句
+      setTimeout(() => {
+        currentSentenceIndex++;
+        readNextSentence();
+      }, 500);
+    });
+}
+
+// 从队列播放下一个音频
+function playNextFromQueue() {
+  // 查找当前句子的音频
+  const audioIndex = audioQueue.findIndex(item => item.index === currentSentenceIndex);
+
+  if (audioIndex !== -1) {
+    // 找到了，立即播放
+    const audioItem = audioQueue[audioIndex];
+    audioQueue.splice(audioIndex, 1); // 从队列中移除
+
+    playAudioFromBase64(audioItem.audio, () => {
+      currentSentenceIndex++;
+      readNextSentence();
+    });
+  } else {
+    // 没找到，可能还在请求中，等待一下再试
+    if (currentSentenceIndex < sentences.length) {
+      setTimeout(() => playNextFromQueue(), 200);
+    } else {
+      // 已经是最后一句了
+      currentSentenceIndex++;
+      readNextSentence();
+    }
+  }
 }
 
 // 豆包TTS API请求（通过background script调用，解决CORS问题）
@@ -349,13 +520,52 @@ function fetchDoubaoTTS(text, voice, speed, _pitch, emotion) {
   });
 }
 
-// 播放base64音频
+// 通过background script调用豆包TTS（支持WebSocket和HTTP模式）
+function fetchDoubaoTTSViaBackground(text, voice, speed, pitch, emotion, websocketMode) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.sync.get({ttsToken: '', ttsAppid: ''}, function(items) {
+      const token = items.ttsToken;
+      const appid = items.ttsAppid;
+      if (!token || !appid) {
+        reject('未配置豆包TTS Token或AppID');
+        return;
+      }
+
+      // 发送消息到background script
+      const requestData = {
+        appid: appid,
+        token: token,
+        text: text,
+        voice_type: voice,
+        speed_ratio: speed || 1.0,
+        encoding: 'mp3',
+        emotion: emotion,
+        websocketMode: websocketMode
+      };
+
+      chrome.runtime.sendMessage({
+        action: 'doubaoTTS',
+        data: requestData
+      }, function(response) {
+        if (response && response.success) {
+          resolve(response.data.audio);
+        } else {
+          reject(response ? response.error : '未知错误');
+        }
+      });
+    });
+  });
+}
+
+
+
+// 播放base64音频（豆包TTS返回MP3格式）
 function playAudioFromBase64(base64, onended) {
   if (audio) {
     audio.pause();
     audio = null;
   }
-  audio = new Audio('data:audio/wav;base64,' + base64);
+  audio = new Audio('data:audio/mp3;base64,' + base64);
   audio.onended = onended;
   audio.onerror = onended;
   audio.play();

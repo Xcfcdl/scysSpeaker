@@ -91,160 +91,191 @@ async function handleDoubaoHTTPTTS(requestData) {
   }
 }
 
-// 处理WebSocket模式的豆包TTS请求
+// 处理WebSocket模式的豆包TTS请求（根据官方代码实现）
 async function handleDoubaoWebSocketTTS(requestData) {
   const { appid, token, text, voice_type, speed_ratio, encoding, emotion } = requestData;
 
   return new Promise((resolve, reject) => {
-    const wsUrl = 'wss://openspeech.bytedance.com/api/v1/tts/ws_binary';
-    const ws = new WebSocket(wsUrl, [], {
-      headers: {
-        'Authorization': `Bearer;${token}`
-      }
-    });
+    try {
+      // 豆包TTS WebSocket接口
+      const wsUrl = `wss://openspeech.bytedance.com/api/v1/tts/ws_binary`;
 
-    let audioChunks = [];
-    let isComplete = false;
+      // Chrome扩展的WebSocket API不支持自定义headers
+      // 我们需要回退到HTTP模式，因为WebSocket需要Authorization header
+      console.warn('WebSocket模式需要Authorization header，但Chrome扩展WebSocket API不支持，回退到HTTP模式');
+      return await handleDoubaoHTTPTTS(requestData);
 
-    ws.onopen = function() {
-      // 构建请求数据
-      const requestBody = {
-        app: {
-          appid: appid,
-          token: token,
-          cluster: "volcano_tts"
-        },
-        user: {
-          uid: "chrome_extension_user"
-        },
-        audio: {
-          voice_type: voice_type,
-          encoding: encoding || "mp3",
-          speed_ratio: speed_ratio || 1.0,
-          rate: 24000
-        },
-        request: {
-          reqid: generateUUID(),
-          text: text,
-          operation: "submit"  // WebSocket使用submit
+      // 以下代码保留作为参考，但在Chrome扩展中无法正常工作
+      /*
+      const ws = new WebSocket(wsUrl);
+
+      // 设置二进制数据类型
+      ws.binaryType = 'arraybuffer';
+
+      let audioChunks = [];
+      let isComplete = false;
+      let hasError = false;
+      let hasReceivedAck = false;
+
+      ws.onopen = function() {
+        console.log('Background WebSocket连接已建立');
+
+        // 构建请求数据（参考官方代码）
+        const requestBody = {
+          app: {
+            appid: appid,
+            token: "access_token", // 官方代码中使用固定字符串
+            cluster: "volcano_tts"
+          },
+          user: {
+            uid: "388808087185088" // 使用官方代码中的uid
+          },
+          audio: {
+            voice_type: voice_type,
+            encoding: encoding || "mp3",
+            speed_ratio: speed_ratio || 1.0,
+            volume_ratio: 1.0,
+            pitch_ratio: 1.0
+          },
+          request: {
+            reqid: generateUUID(),
+            text: text,
+            text_type: "plain",
+            operation: "submit"
+          }
+        };
+
+        // 如果有情感参数，添加到audio配置中
+        if (emotion && emotion !== 'neutral') {
+          requestBody.audio.emotion = emotion;
         }
+
+        // 使用豆包二进制协议发送请求
+        const binaryMessage = createBinaryMessage(JSON.stringify(requestBody));
+        console.log('发送WebSocket请求:', requestBody);
+        ws.send(binaryMessage);
       };
+      */
 
-      // 如果有情感参数，添加到audio配置中
-      if (emotion && emotion !== 'neutral') {
-        requestBody.audio.emotion = emotion;
-        requestBody.audio.enable_emotion = true;
-      }
-
-      // 构建二进制消息
-      const jsonPayload = JSON.stringify(requestBody);
-      const message = createBinaryMessage(jsonPayload);
-      ws.send(message);
-    };
-
-    ws.onmessage = function(event) {
-      try {
-        const response = parseBinaryMessage(event.data);
-        if (response.audio) {
-          audioChunks.push(response.audio);
-        }
-
-        // 检查是否完成（sequence < 0表示最后一条消息）
-        if (response.sequence < 0) {
-          isComplete = true;
-          ws.close();
-
-          // 合并所有音频片段
-          const combinedAudio = audioChunks.join('');
-          resolve({
-            audio: combinedAudio,
-            duration: response.duration
-          });
-        }
-      } catch (error) {
-        console.error('解析WebSocket消息失败:', error);
-        reject(error);
-      }
-    };
-
-    ws.onerror = function(error) {
-      console.error('WebSocket错误:', error);
-      reject(new Error('WebSocket连接失败'));
-    };
-
-    ws.onclose = function(event) {
-      if (!isComplete) {
-        reject(new Error(`WebSocket连接关闭: ${event.code} ${event.reason}`));
-      }
-    };
-
-    // 设置超时
-    setTimeout(() => {
-      if (!isComplete) {
-        ws.close();
-        reject(new Error('WebSocket请求超时'));
-      }
-    }, 30000); // 30秒超时
-  });
+    } catch (error) {
+      console.error('WebSocket模式在Chrome扩展中不可用:', error);
+      return await handleDoubaoHTTPTTS(requestData);
+    }
 }
+
+// WebSocket二进制协议处理函数（暂时未使用，留作参考）
+// 注意：Chrome扩展中的WebSocket有限制，这些函数暂时不会被调用
 
 // 创建二进制消息（根据豆包WebSocket协议）
 function createBinaryMessage(jsonPayload) {
   const payloadBytes = new TextEncoder().encode(jsonPayload);
   const payloadSize = payloadBytes.length;
 
-  // 创建4字节的header
-  const header = new ArrayBuffer(4);
-  const headerView = new DataView(header);
+  // 创建完整的消息：4字节header + payload size(4字节) + payload
+  const totalSize = 4 + 4 + payloadSize;
+  const message = new ArrayBuffer(totalSize);
+  const view = new DataView(message);
+  const messageBytes = new Uint8Array(message);
 
-  // 协议版本(4bit) + Header size(4bit) + Message type(4bit) + Flags(4bit) +
-  // Serialization(4bit) + Compression(4bit) + Reserved(8bit)
-  headerView.setUint8(0, 0x11); // 版本1 + header size 1
-  headerView.setUint8(1, 0x10); // full client request + flags 0
-  headerView.setUint8(2, 0x10); // JSON序列化 + 无压缩
-  headerView.setUint8(3, 0x00); // 保留字段
+  // 按照豆包协议构建header（4字节）
+  // Byte 0: 协议版本(4bit) + Header size(4bit) = 0x11 (版本1, header size 1)
+  view.setUint8(0, 0x11);
 
-  // 合并header和payload
-  const message = new ArrayBuffer(4 + payloadSize);
-  const messageView = new Uint8Array(message);
-  messageView.set(new Uint8Array(header), 0);
-  messageView.set(payloadBytes, 4);
+  // Byte 1: Message type(4bit) + Flags(4bit) = 0x10 (full client request, flags 0)
+  view.setUint8(1, 0x10);
+
+  // Byte 2: Serialization(4bit) + Compression(4bit) = 0x10 (JSON, 无压缩)
+  view.setUint8(2, 0x10);
+
+  // Byte 3: Reserved = 0x00
+  view.setUint8(3, 0x00);
+
+  // Payload size (4字节，大端序)
+  view.setUint32(4, payloadSize, false);
+
+  // Payload data
+  messageBytes.set(payloadBytes, 8);
 
   return message;
 }
 
-// 解析二进制消息
+// 解析二进制消息（根据官方代码）
 function parseBinaryMessage(data) {
   const view = new DataView(data);
 
-  // 解析header
+  // 解析header（参考官方parse_response函数）
   const byte0 = view.getUint8(0);
   const byte1 = view.getUint8(1);
   const byte2 = view.getUint8(2);
+  const byte3 = view.getUint8(3);
 
-  const version = (byte0 >> 4) & 0x0F;
+  const protocolVersion = (byte0 >> 4) & 0x0F;
   const headerSize = byte0 & 0x0F;
   const messageType = (byte1 >> 4) & 0x0F;
-  const flags = byte1 & 0x0F;
-  const serialization = (byte2 >> 4) & 0x0F;
+  const messageTypeSpecificFlags = byte1 & 0x0F;
+  const serializationMethod = (byte2 >> 4) & 0x0F;
+  const messageCompression = byte2 & 0x0F;
+  const reserved = byte3;
+
+  console.log('解析WebSocket消息:', {
+    protocolVersion,
+    headerSize,
+    messageType: '0x' + messageType.toString(16),
+    messageTypeSpecificFlags,
+    serializationMethod,
+    messageCompression,
+    reserved: '0x' + reserved.toString(16).padStart(2, '0')
+  });
+
+  const headerSizeBytes = headerSize * 4;
 
   if (messageType === 0x0B) {
-    // Audio-only server response
-    const audioData = data.slice(4); // 跳过4字节header
-    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
+    // Audio-only server response（参考官方代码）
+    if (messageTypeSpecificFlags === 0) {
+      // no sequence number as ACK
+      console.log('收到ACK消息，无音频数据');
+      return { sequence: 0 };
+    } else {
+      // 有sequence number
+      const sequenceNumber = view.getInt32(headerSizeBytes, false); // 大端序，有符号
+      const payloadSize = view.getUint32(headerSizeBytes + 4, false); // 大端序，无符号
+      const audioData = data.slice(headerSizeBytes + 8); // 跳过sequence number和payload size
 
-    return {
-      audio: base64Audio,
-      sequence: flags === 0x02 || flags === 0x03 ? -1 : 1 // 根据flags判断是否为最后一条
-    };
+      console.log('音频数据:', {
+        sequenceNumber,
+        payloadSize,
+        actualAudioSize: audioData.byteLength
+      });
+
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
+
+      return {
+        audio: base64Audio,
+        sequence: sequenceNumber
+      };
+    }
   } else if (messageType === 0x0F) {
     // Error message
-    throw new Error('服务器返回错误消息');
+    const code = view.getUint32(headerSizeBytes, false);
+    const msgSize = view.getUint32(headerSizeBytes + 4, false);
+    let errorMsg = data.slice(headerSizeBytes + 8);
+
+    // 如果有压缩，需要解压（这里简化处理）
+    const errorString = new TextDecoder().decode(errorMsg);
+
+    console.error('服务器错误:', { code, msgSize, errorString });
+    throw new Error(`豆包TTS服务器错误 (${code}): ${errorString}`);
+  } else if (messageType === 0x0C) {
+    // Frontend server response
+    const msgSize = view.getUint32(headerSizeBytes, false);
+    const frontendMsg = data.slice(headerSizeBytes + 4);
+    const msgString = new TextDecoder().decode(frontendMsg);
+
+    console.log('前端消息:', { msgSize, message: msgString });
+    return { frontendMessage: msgString };
   } else {
-    // 其他类型的消息，尝试解析JSON
-    const jsonData = data.slice(4);
-    const jsonString = new TextDecoder().decode(jsonData);
-    return JSON.parse(jsonString);
+    console.warn('未知消息类型:', messageType);
+    return { unknownType: messageType };
   }
 }
 
@@ -267,7 +298,9 @@ chrome.runtime.onInstalled.addListener(function() {
     emotion: 'neutral',
     customVoiceType: '',
     ttsToken: '',
-    ttsAppid: ''
+    ttsAppid: '',
+    websocketMode: false,
+    concurrentMode: true
   }, function(items) {
     // 如果没有设置，则使用默认值
     if (Object.keys(items).length === 0) {
@@ -279,7 +312,9 @@ chrome.runtime.onInstalled.addListener(function() {
         emotion: 'neutral',
         customVoiceType: '',
         ttsToken: '',
-        ttsAppid: ''
+        ttsAppid: '',
+        websocketMode: false,
+        concurrentMode: true
       });
     }
   });
