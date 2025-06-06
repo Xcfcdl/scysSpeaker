@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>生财有术朗读助手</title>
+  <style>
+    body {
+      width: 320px;
+      padding: 15px;
+      font-family: 'Microsoft YaHei', sans-serif;
+    }
+    h1 {
+      font-size: 18px;
+      text-align: center;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    select, input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .status {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #f8f8f8;
+      border-radius: 4px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>生财有术朗读助手</h1>
+  
+  <div class="form-group">
+    <label for="voice-type">朗读音色:</label>
+    <select id="voice-type">
+      <option value="zh-CN-XiaoxiaoNeural">普通话(女声-晓晓)</option>
+      <option value="zh-CN-YunxiNeural">普通话(男声-云希)</option>
+      <option value="zh-HK-HiuGaaiNeural">粤语(女声-晓婷)</option>
+      <option value="zh-HK-WanLungNeural">粤语(男声-云龙)</option>
+      <option value="en-US-AriaNeural">英语(女声-Aria)</option>
+      <option value="en-US-GuyNeural">英语(男声-Guy)</option>
+      <option value="zh_male_beijingxiaoye_emo_v2_mars_bigtts">豆包-北京小爷（多情感）</option>
+      <option value="zh_female_roumeinvyou_emo_v2_mars_bigtts">豆包-柔美女友（多情感）</option>
+      <option value="zh_male_yangguangqingnian_emo_v2_mars_bigtts">豆包-阳光青年（多情感）</option>
+      <option value="zh_female_cancan_mars_bigtts">豆包-灿灿/Shiny</option>
+      <option value="zh_female_qingxinnvsheng_mars_bigtts">豆包-清新女声</option>
+      <option value="zh_female_shuangkuaisisi_moon_bigtts">豆包-爽快思思/Skye</option>
+      <option value="zh_male_wennuanahu_moon_bigtts">豆包-温暖阿虎/Alvin</option>
+      <option value="zh_male_shaonianzixin_moon_bigtts">豆包-少年梓辛/Brayan</option>
+      <option value="zh_female_zhixingnvsheng_mars_bigtts">豆包-知性女声</option>
+      <option value="zh_male_qingshuangnanda_mars_bigtts">豆包-清爽男大</option>
+      <option value="zh_female_linjianvhai_moon_bigtts">豆包-邻家女孩</option>
+      <option value="zh_male_yuanboxiaoshu_moon_bigtts">豆包-渊博小叔</option>
+      <option value="zh_male_yangguangqingnian_moon_bigtts">豆包-阳光青年</option>
+      <option value="zh_female_tianmeixiaoyuan_moon_bigtts">豆包-甜美小源</option>
+      <option value="zh_female_qingchezizi_moon_bigtts">豆包-清澈梓梓</option>
+      <option value="zh_male_jieshuoxiaoming_moon_bigtts">豆包-解说小明</option>
+      <option value="zh_female_kailangjiejie_moon_bigtts">豆包-开朗姐姐</option>
+      <option value="zh_male_linjiananhai_moon_bigtts">豆包-邻家男孩</option>
+      <option value="zh_female_tianmeiyueyue_moon_bigtts">豆包-甜美悦悦</option>
+      <option value="zh_female_xinlingjitang_moon_bigtts">豆包-心灵鸡汤</option>
+    </select>
+  </div>
+  <div class="form-group" id="emotion-group" style="display:none;">
+    <label for="emotion">情感参数（仅部分豆包音色支持）:</label>
+    <select id="emotion">
+      <option value="neutral">中性</option>
+      <option value="happy">开心</option>
+      <option value="sad">悲伤</option>
+      <option value="angry">生气</option>
+      <option value="surprised">惊讶</option>
+      <option value="fear">恐惧</option>
+      <option value="excited">激动</option>
+      <option value="coldness">冷漠</option>
+      <option value="hate">厌恶</option>
+    </select>
+  </div>
+  <div class="form-group" id="custom-voice-group" style="display:none;">
+    <label for="custom-voice-type">自定义voice_type（高级用户）:</label>
+    <input type="text" id="custom-voice-type" placeholder="如：zh_male_beijingxiaoye_emo_v2_mars_bigtts">
+  </div>
+  
+  <div class="form-group">
+    <label for="rate">朗读速度:</label>
+    <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+    <div style="display: flex; justify-content: space-between;">
+      <span>慢</span>
+      <span id="rate-value">1.0</span>
+      <span>快</span>
+    </div>
+  </div>
+  
+  <div class="form-group">
+    <label for="pitch">音调:</label>
+    <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
+    <div style="display: flex; justify-content: space-between;">
+      <span>低</span>
+      <span id="pitch-value">1.0</span>
+      <span>高</span>
+    </div>
+  </div>
+  
+  <div class="form-group">
+    <label for="auto-next">阅读完自动下一页:</label>
+    <select id="auto-next">
+      <option value="true">是</option>
+      <option value="false">否</option>
+    </select>
+  </div>
+
+  <div class="form-group" id="websocket-mode-group" style="display:none;">
+    <label for="websocket-mode">豆包TTS模式:</label>
+    <select id="websocket-mode">
+      <option value="false">HTTP模式（分句播放）</option>
+      <option value="true">WebSocket模式（整段流式）</option>
+    </select>
+    <div style="font-size:11px; color:#666; margin-top:4px;">
+      HTTP模式：分句请求播放，支持三段式并发<br>
+      WebSocket模式：整段文本流式传输，语音更连贯（实验性）
+    </div>
+  </div>
+
+  <div class="form-group" id="concurrent-mode-group" style="display:none;">
+    <label for="concurrent-mode">播放模式（仅HTTP模式）:</label>
+    <select id="concurrent-mode">
+      <option value="true">三段式并发播放（推荐）</option>
+      <option value="false">串行播放（传统模式）</option>
+    </select>
+    <div style="font-size:11px; color:#666; margin-top:4px;">
+      三段式并发：播放一句，准备一句，请求一句，无缝衔接<br>
+      串行播放：逐句请求播放，可能有停顿<br>
+      注意：WebSocket模式自动使用整段流式播放
+    </div>
+  </div>
+  
+  <div class="form-group">
+    <label for="tts-appid">豆包TTS AppID:
+      <a href="https://www.volcengine.com/docs/6561/1257584" target="_blank" style="font-size:12px;margin-left:8px;">如何获取？</a>
+    </label>
+    <input type="text" id="tts-appid" placeholder="请输入你的豆包TTS AppID" style="width:100%;">
+  </div>
+  
+  <div class="form-group">
+    <label for="tts-token">豆包TTS Token:
+      <a href="https://www.volcengine.com/docs/6561/1257584" target="_blank" style="font-size:12px;margin-left:8px;">如何获取？</a>
+    </label>
+    <input type="text" id="tts-token" placeholder="请输入你的豆包TTS Token" style="width:100%;">
+    <div style="margin-top:6px;">
+      <button id="test-tts-token" style="padding:6px 12px; font-size:13px; width:100%;">测试当前配置</button>
+      <div id="token-test-status" style="font-size:12px; color:#888; display:none; margin-top:6px; padding:6px; background:#f5f5f5; border-radius:3px; word-wrap:break-word;"></div>
+    </div>
+  </div>
+  
+  <button id="save-settings">保存设置</button>
+  
+  <div class="status" id="status">设置已保存</div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 

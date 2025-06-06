@@ -1,0 +1,188 @@
+/* 全局样式 */
+:root {
+    --primary-color: #4CAF50;
+    --primary-dark: #388E3C;
+    --light-color: #FFFFFF;
+    --text-color: #333333;
+    --light-gray: #F5F5F5;
+}
+
+body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+/* 头部样式 */
+.header {
+    background-color: var(--primary-color);
+    color: var(--light-color);
+    padding: 60px 0;
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+/* 功能区域 */
+.features {
+    padding: 60px 0;
+    background-color: var(--light-color);
+}
+
+.features h2 {
+    text-align: center;
+    margin-bottom: 40px;
+    font-size: 2rem;
+    color: var(--primary-dark);
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}
+
+.feature-card {
+    background: var(--light-gray);
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+}
+
+.feature-card .icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.feature-card h3 {
+    color: var(--primary-dark);
+    margin-bottom: 10px;
+}
+
+/* 使用指南 */
+.how-to-use {
+    background-color: var(--light-gray);
+    padding: 60px 0;
+}
+
+.how-to-use h2 {
+    text-align: center;
+    margin-bottom: 40px;
+    font-size: 2rem;
+    color: var(--primary-dark);
+}
+
+.steps {
+    max-width: 600px;
+    margin: 0 auto;
+    padding-left: 20px;
+}
+
+.steps li {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+/* 安装方法 */
+.installation {
+    padding: 60px 0;
+    background-color: var(--light-color);
+}
+
+.installation h2 {
+    text-align: center;
+    margin-bottom: 40px;
+    font-size: 2rem;
+    color: var(--primary-dark);
+}
+
+.install-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.install-option {
+    background: var(--light-gray);
+    border-radius: 8px;
+    padding: 30px;
+}
+
+.install-option h3 {
+    color: var(--primary-dark);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: var(--light-color);
+    padding: 12px 30px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    text-align: center;
+    margin-top: 15px;
+}
+
+.btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* 页脚 */
+.footer {
+    background-color: var(--primary-dark);
+    color: var(--light-color);
+    padding: 30px 0;
+    text-align: center;
+}
+
+.footer a {
+    color: var(--light-color);
+    text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .header {
+        padding: 40px 0;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+    
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .install-options {
+        grid-template-columns: 1fr;
+    }
+}
