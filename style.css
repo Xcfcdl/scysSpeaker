@@ -228,7 +228,7 @@ body {
 
 .hero-bg {
     position: absolute;
-    top: 80%;
+    top: 60%;
     left: 60%;
     transform: translate(-50%, -50%);
     min-width: 100%;
@@ -347,15 +347,19 @@ body {
 }
 
 .btn-secondary {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--white);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(10px);
+    background-color: var(--gray-700);
+    color: var(--gray-100);
+    border: 1px solid var(--gray-600);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
 }
 
 .btn-secondary:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: var(--gray-800);
+    color: var(--white);
     transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-outline {
@@ -367,6 +371,11 @@ body {
 .btn-outline:hover {
     background-color: var(--primary-600);
     color: var(--white);
+}
+
+.github-icon {
+    margin-left: var(--space-2);
+    filter: brightness(0) invert(1);
 }
 
 /* Section Headers */
@@ -672,6 +681,14 @@ body {
     color: var(--gray-600);
     margin-bottom: var(--space-2);
     font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.install-features li::before {
+    content: "✅";
+    color: #4CAF50;
 }
 
 .install-steps {
