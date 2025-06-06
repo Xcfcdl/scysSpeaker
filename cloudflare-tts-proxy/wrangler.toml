@@ -1,6 +1,0 @@
-name = "doubao-tts-proxy"
-main = "src/index.js"
-compatibility_date = "2024-06-06"
-
-[vars]
-DOUBAO_TTS_TOKEN = "sk-xxxxxx" # 可选，支持环境变量 

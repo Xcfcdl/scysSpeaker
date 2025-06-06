@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const testTokenBtn = document.getElementById('test-tts-token');
   const tokenTestStatus = document.getElementById('token-test-status');
   const ttsAppid = document.getElementById('tts-appid');
+  const websocketModeGroup = document.getElementById('websocket-mode-group');
+  const websocketMode = document.getElementById('websocket-mode');
 
   // 判断是否豆包TTS音色
   function isDoubaoVoiceType(val) {
@@ -27,9 +29,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isDoubaoVoiceType(voiceType.value)) {
       emotionGroup.style.display = '';
       customVoiceGroup.style.display = '';
+      websocketModeGroup.style.display = '';
     } else {
       emotionGroup.style.display = 'none';
       customVoiceGroup.style.display = 'none';
+      websocketModeGroup.style.display = 'none';
     }
   }
 
@@ -42,7 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
     emotion: 'neutral',
     customVoiceType: '',
     ttsToken: '',
-    ttsAppid: ''
+    ttsAppid: '',
+    websocketMode: false
   }, function(items) {
     voiceType.value = items.voiceType;
     rate.value = items.rate;
@@ -54,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     customVoiceType.value = items.customVoiceType || '';
     ttsToken.value = items.ttsToken || '';
     ttsAppid.value = items.ttsAppid || '';
+    websocketMode.value = items.websocketMode ? 'true' : 'false';
     updateDoubaoFields();
   });
 
@@ -84,7 +90,8 @@ document.addEventListener('DOMContentLoaded', function() {
       emotion: emotion.value,
       customVoiceType: customVoiceType.value.trim(),
       ttsToken: ttsToken.value.trim(),
-      ttsAppid: ttsAppid.value.trim()
+      ttsAppid: ttsAppid.value.trim(),
+      websocketMode: websocketMode.value === 'true'
     }, function() {
       // 更新状态
       status.textContent = '设置已保存';
@@ -112,29 +119,55 @@ document.addEventListener('DOMContentLoaded', function() {
       tokenTestStatus.style.color = 'red';
       return;
     }
+
+    // 获取当前选择的配置
+    let testVoiceType = voiceType.value;
+    // 如果是豆包音色且有自定义voice_type，使用自定义的
+    if (isDoubaoVoiceType(voiceType.value) && customVoiceType.value.trim()) {
+      testVoiceType = customVoiceType.value.trim();
+    }
+
+    // 检查是否选择了豆包音色
+    if (!isDoubaoVoiceType(testVoiceType)) {
+      tokenTestStatus.textContent = '请选择豆包音色进行测试（以"zh_"开头的音色）';
+      tokenTestStatus.style.display = '';
+      tokenTestStatus.style.color = 'red';
+      return;
+    }
+
+    const testEmotion = emotion.value || 'neutral';
+    const testSpeed = parseFloat(rate.value) || 1.0;
+    const useWebSocket = websocketMode.value === 'true';
+
     tokenTestStatus.textContent = '测试中...';
     tokenTestStatus.style.display = '';
     tokenTestStatus.style.color = '#333';
 
-    fetch('https://doubaospeaker-jrmsgzz7y-xcfcdls-projects.vercel.app/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    // 通过background script测试豆包TTS，使用当前选择的配置
+    chrome.runtime.sendMessage({
+      action: 'testDoubaoTTS',
+      data: {
         appid: appid,
         token: token,
-        text: '配置成功',
-        voice: 'zh_male_beijingxiaoye_emo_v2_mars_bigtts',
-        speed: 1.0,
-        pitch: 1.0,
-        emotion: 'neutral'
-      })
-    })
-    .then(resp => resp.json())
-    .then(data => {
-      if (data.audio) {
-        const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+        text: '配置成功，当前音色测试',
+        voice_type: testVoiceType,
+        speed_ratio: testSpeed,
+        encoding: 'mp3',
+        emotion: testEmotion,
+        websocketMode: useWebSocket
+      }
+    }, function(response) {
+      if (chrome.runtime.lastError) {
+        tokenTestStatus.textContent = '扩展通信错误: ' + chrome.runtime.lastError.message;
+        tokenTestStatus.style.color = 'red';
+        return;
+      }
+
+      if (response && response.success) {
+        const audio = new Audio('data:audio/mp3;base64,' + response.data.audio);
         audio.onended = function() {
-          tokenTestStatus.textContent = 'Token可用，已朗读"配置成功"';
+          const modeText = useWebSocket ? 'WebSocket模式' : 'HTTP模式';
+          tokenTestStatus.textContent = `Token可用，${modeText}，音色: ${testVoiceType}，情感: ${testEmotion}，语速: ${testSpeed}`;
           tokenTestStatus.style.color = 'green';
         };
         audio.onerror = function() {
@@ -143,13 +176,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         audio.play();
       } else {
-        tokenTestStatus.textContent = 'Token或AppID无效或接口异常：' + (data.message || '未知错误');
+        tokenTestStatus.textContent = 'Token或AppID无效或接口异常：' + (response ? response.error : '未知错误');
         tokenTestStatus.style.color = 'red';
       }
-    })
-    .catch(e => {
-      tokenTestStatus.textContent = '请求失败: ' + e.toString();
-      tokenTestStatus.style.color = 'red';
     });
   });
 }); 

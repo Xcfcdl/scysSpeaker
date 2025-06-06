@@ -39,7 +39,8 @@ function loadSettings() {
     emotion: 'neutral',
     customVoiceType: '',
     ttsToken: '',
-    ttsAppid: ''
+    ttsAppid: '',
+    websocketMode: false
   }, function(items) {
     settings = items;
   });
@@ -124,7 +125,7 @@ function setupEventListeners() {
   });
 
   // 监听来自popup的消息
-  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+  chrome.runtime.onMessage.addListener(function(request) {
     if (request.action === 'settingsUpdated') {
       loadSettings();
       if (isPlaying) {
@@ -308,8 +309,8 @@ function readNextSentence() {
   speechSynthesis.speak(utterance);
 }
 
-// 豆包TTS API请求（HTTP代理实现，自动分句并发+错误预处理）
-function fetchDoubaoTTS(text, voice, speed, pitch, emotion) {
+// 豆包TTS API请求（通过background script调用，解决CORS问题）
+function fetchDoubaoTTS(text, voice, speed, _pitch, emotion) {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.get({ttsToken: '', ttsAppid: ''}, function(items) {
       const token = items.ttsToken;
@@ -318,72 +319,32 @@ function fetchDoubaoTTS(text, voice, speed, pitch, emotion) {
         reject('未配置豆包TTS Token或AppID');
         return;
       }
-      // 自动分句
-      const sentences = splitIntoSentences(text);
-      if (sentences.length === 0) {
-        reject('文本为空，无法朗读');
-        return;
-      }
-      const maxConcurrency = 3;
-      let current = 0;
-      let results = new Array(sentences.length);
-      let finished = 0;
-      let hasError = false;
-      function requestOne(index, retry = 0) {
-        fetch('https://doubaospeaker-jrmsgzz7y-xcfcdls-projects.vercel.app/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            appid: appid,
-            token: token,
-            text: sentences[index],
-            voice: voice,
-            speed: speed,
-            pitch: pitch,
-            emotion: emotion
-          })
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data.audio) {
-            results[index] = data.audio;
-          } else {
-            if (retry < 1) {
-              requestOne(index, retry + 1);
-              return;
-            } else {
-              results[index] = '';
-            }
-          }
-        })
-        .catch(err => {
-          if (retry < 1) {
-            requestOne(index, retry + 1);
-            return;
-          } else {
-            results[index] = '';
-          }
-        })
-        .finally(() => {
-          finished++;
-          if (current < sentences.length) {
-            requestOne(current++);
-          }
-          if (finished === sentences.length) {
-            // 拼接所有成功的base64
-            const allAudio = results.filter(Boolean).join('');
-            if (allAudio) {
-              resolve(allAudio);
-            } else {
-              reject('TTS全部请求失败，请检查Token/AppID/网络');
-            }
-          }
-        });
-      }
-      // 启动并发
-      while (current < Math.min(maxConcurrency, sentences.length)) {
-        requestOne(current++);
-      }
+
+      // 发送消息给background script处理TTS请求
+      chrome.runtime.sendMessage({
+        action: 'doubaoTTS',
+        data: {
+          appid: appid,
+          token: token,
+          text: text,
+          voice_type: voice,
+          speed_ratio: speed,
+          encoding: 'mp3',
+          emotion: emotion,
+          websocketMode: settings.websocketMode || false
+        }
+      }, function(response) {
+        if (chrome.runtime.lastError) {
+          reject('扩展通信错误: ' + chrome.runtime.lastError.message);
+          return;
+        }
+
+        if (response && response.success) {
+          resolve(response.data.audio);
+        } else {
+          reject(response ? response.error : '未知错误');
+        }
+      });
     });
   });
 }
