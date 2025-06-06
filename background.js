@@ -95,72 +95,11 @@ async function handleDoubaoHTTPTTS(requestData) {
 async function handleDoubaoWebSocketTTS(requestData) {
   const { appid, token, text, voice_type, speed_ratio, encoding, emotion } = requestData;
 
-  return new Promise((resolve, reject) => {
-    try {
-      // 豆包TTS WebSocket接口
-      const wsUrl = `wss://openspeech.bytedance.com/api/v1/tts/ws_binary`;
-
-      // Chrome扩展的WebSocket API不支持自定义headers
-      // 我们需要回退到HTTP模式，因为WebSocket需要Authorization header
-      console.warn('WebSocket模式需要Authorization header，但Chrome扩展WebSocket API不支持，回退到HTTP模式');
-      return await handleDoubaoHTTPTTS(requestData);
-
-      // 以下代码保留作为参考，但在Chrome扩展中无法正常工作
-      /*
-      const ws = new WebSocket(wsUrl);
-
-      // 设置二进制数据类型
-      ws.binaryType = 'arraybuffer';
-
-      let audioChunks = [];
-      let isComplete = false;
-      let hasError = false;
-      let hasReceivedAck = false;
-
-      ws.onopen = function() {
-        console.log('Background WebSocket连接已建立');
-
-        // 构建请求数据（参考官方代码）
-        const requestBody = {
-          app: {
-            appid: appid,
-            token: "access_token", // 官方代码中使用固定字符串
-            cluster: "volcano_tts"
-          },
-          user: {
-            uid: "388808087185088" // 使用官方代码中的uid
-          },
-          audio: {
-            voice_type: voice_type,
-            encoding: encoding || "mp3",
-            speed_ratio: speed_ratio || 1.0,
-            volume_ratio: 1.0,
-            pitch_ratio: 1.0
-          },
-          request: {
-            reqid: generateUUID(),
-            text: text,
-            text_type: "plain",
-            operation: "submit"
-          }
-        };
-
-        // 如果有情感参数，添加到audio配置中
-        if (emotion && emotion !== 'neutral') {
-          requestBody.audio.emotion = emotion;
-        }
-
-        // 使用豆包二进制协议发送请求
-        const binaryMessage = createBinaryMessage(JSON.stringify(requestBody));
-        console.log('发送WebSocket请求:', requestBody);
-        ws.send(binaryMessage);
-      };
-      */
-
-    } catch (error) {
-      console.error('WebSocket模式在Chrome扩展中不可用:', error);
-      return await handleDoubaoHTTPTTS(requestData);
-    }
+  // Chrome扩展的WebSocket API不支持自定义headers
+  // 豆包WebSocket需要Authorization header，但浏览器WebSocket API不支持
+  // 因此回退到HTTP模式
+  console.warn('WebSocket模式需要Authorization header，但Chrome扩展WebSocket API不支持，回退到HTTP模式');
+  return await handleDoubaoHTTPTTS(requestData);
 }
 
 // WebSocket二进制协议处理函数（暂时未使用，留作参考）

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>悬浮按钮Logo测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .logo-preview {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px;
+        }
+        
+        .logo-preview img {
+            width: 30px;
+            height: 30px;
+            filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(119%) contrast(119%);
+        }
+        
+        .logo-preview.playing {
+            border-color: #f44336;
+        }
+        
+        .logo-preview.playing img {
+            filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
+        }
+        
+        .logo-preview.paused {
+            border-color: #ff9800;
+        }
+        
+        .logo-preview.paused img {
+            filter: brightness(0) saturate(100%) invert(60%) sepia(98%) saturate(1352%) hue-rotate(15deg) brightness(119%) contrast(129%);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>悬浮按钮Logo测试</h1>
+        <p>这个页面用于测试悬浮按钮在不同状态下的logo显示效果。</p>
+        
+        <h2>不同状态的Logo预览：</h2>
+        
+        <div style="display: flex; align-items: center; margin: 20px 0;">
+            <div class="logo-preview">
+                <img src="logo.svg" alt="默认状态">
+            </div>
+            <span>默认状态（绿色）</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; margin: 20px 0;">
+            <div class="logo-preview playing">
+                <img src="logo.svg" alt="播放状态">
+            </div>
+            <span>播放状态（红色）</span>
+        </div>
+        
+        <div style="display: flex; align-items: center; margin: 20px 0;">
+            <div class="logo-preview paused">
+                <img src="logo.svg" alt="暂停状态">
+            </div>
+            <span>暂停状态（橙色）</span>
+        </div>
+        
+        <h2>修改说明：</h2>
+        <ul>
+            <li>悬浮按钮现在使用logo.svg文件作为图标</li>
+            <li>按钮背景改为白色，边框颜色根据状态变化</li>
+            <li>图标颜色通过CSS filter属性控制：
+                <ul>
+                    <li>默认状态：绿色 (#4CAF50)</li>
+                    <li>播放状态：红色 (#f44336)</li>
+                    <li>暂停状态：橙色 (#ff9800)</li>
+                </ul>
+            </li>
+            <li>图标大小设置为30x30像素，在50x50像素的圆形按钮中居中显示</li>
+        </ul>
+    </div>
+</body>
+</html>
