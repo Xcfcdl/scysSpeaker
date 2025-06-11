@@ -511,6 +511,9 @@ function resumeReading() {
 
 // 停止朗读
 function stopReading() {
+  // 设置停止标志，防止onerror事件继续播放
+  isPlaying = false;
+
   if (speechSynthesis) {
     speechSynthesis.cancel();
   }
@@ -524,7 +527,6 @@ function stopReading() {
   audioQueue = [];
   isRequestingAudio = false;
 
-  isPlaying = false;
   isPaused = false;
   floatBtn.title = '开始朗读';
   floatBtn.classList.remove('playing', 'paused');
@@ -534,6 +536,11 @@ function stopReading() {
 
 // 朗读下一句（三段式并发版本）
 function readNextSentence() {
+  // 检查是否已经停止播放
+  if (!isPlaying) {
+    return;
+  }
+
   if (currentSentenceIndex >= sentences.length) {
     // 当前帖子朗读完毕
     if (currentPostIndex < posts.length - 1) {
@@ -723,12 +730,23 @@ function readNextSentence() {
   }
 
   utterance.onend = function() {
+    // 检查是否已经停止播放
+    if (!isPlaying) return;
+
     currentSentenceIndex++;
     readNextSentence();
   };
 
   utterance.onerror = function(event) {
     console.error('朗读错误:', event);
+
+    // 如果是用户主动停止（interrupted），不继续播放
+    if (event.error === 'interrupted' || !isPlaying) {
+      console.log('朗读被中断或已停止，不继续播放');
+      return;
+    }
+
+    // 其他错误继续播放下一句
     currentSentenceIndex++;
     readNextSentence();
   };
@@ -1017,8 +1035,6 @@ function fetchDoubaoTTSViaBackground(text, voice, speed, pitch, emotion, websock
   });
 }
 
-
-
 // 播放base64音频（豆包TTS返回MP3格式）
 function playAudioFromBase64(base64, onended) {
   if (audio) {
@@ -1104,14 +1120,27 @@ function splitIntoSentences(text) {
 }
 
 // 更新状态显示
-function updateStatus(message) {
-  statusDisplay.textContent = message;
-  statusDisplay.classList.add('active');
-  
-  // 5秒后自动隐藏
-  setTimeout(() => {
-    statusDisplay.classList.remove('active');
-  }, 5000);
+function updateStatus(msg) {
+  // 1. 控制台输出
+  console.log('状态提示:', msg);
+
+  // 2. 或者动态插入一个提示元素
+  let tip = document.getElementById('my-ext-status-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'my-ext-status-tip';
+    tip.style.position = 'fixed';
+    tip.style.top = '10px';
+    tip.style.right = '10px';
+    tip.style.background = 'rgba(0,0,0,0.7)';
+    tip.style.color = '#fff';
+    tip.style.padding = '8px 16px';
+    tip.style.borderRadius = '4px';
+    tip.style.zIndex = 99999;
+    document.body.appendChild(tip);
+  }
+  tip.textContent = msg;
+  setTimeout(() => { tip.remove(); }, 2000);
 }
 
 // 等待语音列表加载完成
