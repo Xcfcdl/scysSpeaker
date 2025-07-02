@@ -135,15 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   testTokenBtn.addEventListener('click', function() {
-    const token = ttsToken.value.trim();
-    const appid = ttsAppid.value.trim();
-    if (!token || !appid) {
-      tokenTestStatus.textContent = '请先填写Token和AppID';
-      tokenTestStatus.style.display = '';
-      tokenTestStatus.style.color = 'red';
-      return;
-    }
-
     // 获取当前选择的配置
     let testVoiceType = voiceType.value;
     // 如果是豆包音色且有自定义voice_type，使用自定义的
@@ -151,9 +142,42 @@ document.addEventListener('DOMContentLoaded', function() {
       testVoiceType = customVoiceType.value.trim();
     }
 
-    // 检查是否选择了豆包音色
+    // 判断是否为原生TTS
     if (!isDoubaoVoiceType(testVoiceType)) {
-      tokenTestStatus.textContent = '请选择豆包音色进行测试（以"zh_"开头的音色）';
+      // 原生TTS测试逻辑
+      tokenTestStatus.textContent = '测试中...';
+      tokenTestStatus.style.display = '';
+      tokenTestStatus.style.color = '#333';
+      const synth = window.speechSynthesis;
+      const voices = synth.getVoices();
+      // 查找匹配的语音
+      let selectedVoice = voices.find(voice => voice.name === testVoiceType);
+      if (!selectedVoice) {
+        tokenTestStatus.textContent = '未找到该音色，请检查浏览器是否支持';
+        tokenTestStatus.style.color = 'red';
+        return;
+      }
+      const utter = new SpeechSynthesisUtterance('原生TTS配置成功，当前音色测试');
+      utter.voice = selectedVoice;
+      utter.rate = parseFloat(rate.value) || 1.0;
+      utter.pitch = parseFloat(pitch.value) || 1.0;
+      utter.onend = function() {
+        tokenTestStatus.textContent = `原生TTS可用，音色: ${selectedVoice.name}，语速: ${utter.rate}`;
+        tokenTestStatus.style.color = 'green';
+      };
+      utter.onerror = function() {
+        tokenTestStatus.textContent = '原生TTS朗读失败';
+        tokenTestStatus.style.color = 'red';
+      };
+      synth.speak(utter);
+      return;
+    }
+
+    // 豆包TTS测试逻辑
+    const token = ttsToken.value.trim();
+    const appid = ttsAppid.value.trim();
+    if (!token || !appid) {
+      tokenTestStatus.textContent = '请先填写Token和AppID';
       tokenTestStatus.style.display = '';
       tokenTestStatus.style.color = 'red';
       return;
@@ -206,36 +230,53 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Microsoft Neural中文名映射表
-  const msVoiceNameMap = {
-    'Microsoft Xiaoxiao Online (Natural)': '晓晓（女声，普通话）',
-    'Microsoft Yunxi Online (Natural)': '云希（男声，普通话）',
-    'Microsoft Xiaoyi Online (Natural)': '小依（女声，普通话）',
-    'Microsoft Yunjian Online (Natural)': '云健（男声，普通话）',
-    'Microsoft Yunxia Online (Natural)': '云夏（女声，普通话）',
-    'Microsoft Yunyang Online (Natural)': '云扬（男声，普通话）',
-    'Microsoft WanLung Online (Natural)': '云龙（男声，粤语）',
-    'Microsoft HiuGaai Online (Natural)': '晓佳（女声，粤语）',
-    'Microsoft HiuMaan Online (Natural)': '晓曼（女声，粤语）'
-  };
-  // 只保留Microsoft Neural系列中的中文音色
-  const msVoices = voices.filter(v => v.name.includes('Microsoft') && v.name.toLowerCase().includes('natural') && v.lang.startsWith('zh'));
-  msVoices.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.name;
-    // 中文名优先，否则用原名
-    opt.textContent = msVoiceNameMap[v.name] || `${v.lang} - ${v.name}`;
-    opt.setAttribute('data-lang', v.lang);
-    opt.title = v.name;
-    voiceType.insertBefore(opt, voiceType.firstChild);
-  });
-  // 系统本地TTS：只显示当前默认语音（即voices.find(v => v.default)）
-  const defaultVoice = voices.find(v => v.default && (v.lang.startsWith('zh') || v.lang.startsWith('zh-')));
-  if (defaultVoice && !msVoices.some(v => v.name === defaultVoice.name)) {
-    const opt = document.createElement('option');
-    opt.value = defaultVoice.name;
-    opt.textContent = `${defaultVoice.lang} - ${defaultVoice.name}（系统默认）`;
-    opt.setAttribute('data-lang', defaultVoice.lang);
-    voiceType.insertBefore(opt, voiceType.firstChild);
+  // 动态插入原生TTS音色选项
+  function insertNativeVoices() {
+    const select = voiceType;
+    // 先移除所有原生TTS选项（保留豆包TTS）
+    while (select.firstChild && (!select.firstChild.value || !select.firstChild.value.startsWith('zh_'))) {
+      select.removeChild(select.firstChild);
+    }
+    // 获取浏览器支持的语音
+    const synth = window.speechSynthesis;
+    let voices = synth.getVoices();
+    // Microsoft Neural中文名映射表
+    const msVoiceNameMap = {
+      'Microsoft Xiaoxiao Online (Natural)': '晓晓（女声，普通话）',
+      'Microsoft Yunxi Online (Natural)': '云希（男声，普通话）',
+      'Microsoft Xiaoyi Online (Natural)': '小依（女声，普通话）',
+      'Microsoft Yunjian Online (Natural)': '云健（男声，普通话）',
+      'Microsoft Yunxia Online (Natural)': '云夏（女声，普通话）',
+      'Microsoft Yunyang Online (Natural)': '云扬（男声，普通话）',
+      'Microsoft WanLung Online (Natural)': '云龙（男声，粤语）',
+      'Microsoft HiuGaai Online (Natural)': '晓佳（女声，粤语）',
+      'Microsoft HiuMaan Online (Natural)': '晓曼（女声，粤语）'
+    };
+    // 只保留Microsoft Neural系列中的中文音色
+    const msVoices = voices.filter(v => v.name.includes('Microsoft') && v.name.toLowerCase().includes('natural') && v.lang.startsWith('zh'));
+    msVoices.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      // 中文名优先，否则用原名
+      opt.textContent = msVoiceNameMap[v.name] || `${v.lang} - ${v.name}`;
+      opt.setAttribute('data-lang', v.lang);
+      opt.title = v.name;
+      select.insertBefore(opt, select.firstChild);
+    });
+    // 系统本地TTS：只显示当前默认语音（即voices.find(v => v.default)）
+    const defaultVoice = voices.find(v => v.default && (v.lang.startsWith('zh') || v.lang.startsWith('zh-')));
+    if (defaultVoice && !msVoices.some(v => v.name === defaultVoice.name)) {
+      const opt = document.createElement('option');
+      opt.value = defaultVoice.name;
+      opt.textContent = `${defaultVoice.lang} - ${defaultVoice.name}（系统默认）`;
+      opt.setAttribute('data-lang', defaultVoice.lang);
+      select.insertBefore(opt, select.firstChild);
+    }
   }
+  // 语音列表加载后插入
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = insertNativeVoices;
+  }
+  // DOM加载后也尝试插入一次
+  insertNativeVoices();
 }); 

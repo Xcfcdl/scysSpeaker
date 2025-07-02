@@ -41,6 +41,7 @@ let isUserNavigating = false;
 
 // 初始化
 function init() {
+  console.log('[scysSpeaker] init called');
   loadSettings();
   createUI();
   detectPosts();
@@ -49,6 +50,23 @@ function init() {
 
 // 加载设置
 function loadSettings() {
+  console.log('[scysSpeaker] loadSettings called');
+  if (!chrome || !chrome.storage || !chrome.storage.sync) {
+    console.warn('[scysSpeaker] chrome.storage.sync 不可用，使用默认设置');
+    settings = {
+      voiceType: 'zh-CN-XiaoxiaoNeural',
+      rate: 1.0,
+      pitch: 1.0,
+      autoNext: true,
+      emotion: 'neutral',
+      customVoiceType: '',
+      ttsToken: '',
+      ttsAppid: '',
+      websocketMode: false,
+      concurrentMode: true
+    };
+    return;
+  }
   chrome.storage.sync.get({
     voiceType: 'zh-CN-XiaoxiaoNeural',
     rate: 1.0,
@@ -58,15 +76,24 @@ function loadSettings() {
     customVoiceType: '',
     ttsToken: '',
     ttsAppid: '',
-    websocketMode: false
+    websocketMode: false,
+    concurrentMode: true
   }, function(items) {
+    console.log('[scysSpeaker] loadSettings items:', items);
     settings = items;
   });
 }
 
 // 加载按钮位置
 function loadButtonPosition() {
+  console.log('[scysSpeaker] loadButtonPosition called');
+  if (!chrome || !chrome.storage || !chrome.storage.local) {
+    console.warn('[scysSpeaker] chrome.storage.local 不可用，使用默认按钮位置');
+    setButtonPosition(window.innerWidth - 70, window.innerHeight - 150);
+    return;
+  }
   chrome.storage.local.get(['buttonPosition'], function(result) {
+    console.log('[scysSpeaker] loadButtonPosition result:', result);
     if (result.buttonPosition) {
       buttonPosition = result.buttonPosition;
       applyButtonPosition();
@@ -79,6 +106,8 @@ function loadButtonPosition() {
 
 // 保存按钮位置
 function saveButtonPosition() {
+  console.log('[scysSpeaker] saveButtonPosition called', buttonPosition);
+  if (!chrome || !chrome.storage || !chrome.storage.local) return;
   chrome.storage.local.set({ buttonPosition: buttonPosition });
 }
 
@@ -150,9 +179,11 @@ function snapToEdge() {
 
 // 创建UI元素
 function createUI() {
+  console.log('[scysSpeaker] createUI called');
   // 创建悬浮按钮
   floatBtn = document.createElement('div');
   floatBtn.className = 'scys-reader-float-btn';
+  console.log('[scysSpeaker] floatBtn created', floatBtn);
 
   // 创建logo图标
   const logoImg = document.createElement('img');
@@ -168,6 +199,7 @@ function createUI() {
   loadButtonPosition();
 
   document.body.appendChild(floatBtn);
+  console.log('[scysSpeaker] floatBtn appended to body');
 
   // 创建控制面板
   controlsPanel = document.createElement('div');
@@ -185,15 +217,24 @@ function createUI() {
     </div>
   `;
   document.body.appendChild(controlsPanel);
+  console.log('[scysSpeaker] controlsPanel appended to body');
 
   // 创建状态显示
   statusDisplay = document.createElement('div');
   statusDisplay.className = 'scys-reader-status';
   document.body.appendChild(statusDisplay);
+  // 确保悬浮按钮在最上层
+  floatBtn.style.zIndex = 99999;
+  console.log('[scysSpeaker] createUI finished');
 }
 
 // 检测页面上的帖子
 function detectPosts() {
+  // 检查是否已初始化UI（floatBtn存在）
+  if (typeof floatBtn === 'undefined' || !floatBtn || !document.body.contains(floatBtn)) {
+    console.warn('[scysSpeaker] detectPosts: 未检测到悬浮按钮，自动初始化...');
+    init();
+  }
   posts = Array.from(document.querySelectorAll('div.post-item'));
   if (posts.length > 0) {
     updateStatus(`检测到${posts.length}篇帖子`);

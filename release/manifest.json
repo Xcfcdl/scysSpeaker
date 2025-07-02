@@ -26,7 +26,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://scys.com/*"],
+      "matches": ["https://scys.com/*","http://scys.com/*"],
       "js": ["content.js"],
       "css": ["content.css"]
     }

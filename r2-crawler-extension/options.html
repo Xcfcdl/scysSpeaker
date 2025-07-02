@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>R2参数设置</title>
+  <style>
+    body { width: 320px; padding: 15px; font-family: 'Microsoft YaHei', sans-serif; }
+    label { display: block; margin-top: 10px; }
+    input { width: 100%; padding: 6px; margin-top: 4px; }
+    button { margin-top: 15px; width: 100%; padding: 10px; }
+    #status { margin-top: 10px; color: green; }
+  </style>
+</head>
+<body>
+  <h2>R2参数设置</h2>
+  <label>Endpoint: <input id="endpoint"></label>
+  <label>AccessKey: <input id="accessKey"></label>
+  <label>SecretKey: <input id="secretKey" type="password"></label>
+  <label>Bucket: <input id="bucket"></label>
+  <button id="save">保存</button>
+  <button id="reset-crawled-ids">一键重置本地去重</button>
+  <div id="status"></div>
+  <script src="options.js"></script>
+</body>
+</html> 
