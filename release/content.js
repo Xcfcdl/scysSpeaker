@@ -37,6 +37,8 @@ let dragThreshold = 5; // 拖动阈值，小于此值认为是点击
 let hasDragged = false;
 let buttonPosition = { x: null, y: null }; // 保存按钮位置
 
+let isUserNavigating = false;
+
 // 初始化
 function init() {
   loadSettings();
@@ -223,23 +225,29 @@ function setupEventListeners() {
 
     if (target.id === 'scys-reader-prev') {
       if (currentPostIndex > 0) {
+        isUserNavigating = true;
         stopReading();
         currentPostIndex--;
         startReading();
+        setTimeout(() => { isUserNavigating = false; }, 500);
       } else {
         updateStatus('已经是第一篇');
       }
     } else if (target.id === 'scys-reader-next') {
       if (currentPostIndex < posts.length - 1) {
+        isUserNavigating = true;
         stopReading();
         currentPostIndex++;
         startReading();
+        setTimeout(() => { isUserNavigating = false; }, 500);
       } else {
         goToNextPage();
       }
     } else if (target.id === 'scys-reader-stop') {
+      isUserNavigating = true;
       stopReading();
       controlsPanel.classList.remove('active');
+      setTimeout(() => { isUserNavigating = false; }, 500);
     } else if (target.id === 'scys-reader-config') {
       chrome.runtime.sendMessage({action: 'openPopup'});
     } else if (target.id === 'scys-reader-close') {
@@ -742,7 +750,18 @@ function readNextSentence() {
 
     // 如果是用户主动停止（interrupted），不继续播放
     if (event.error === 'interrupted' || !isPlaying) {
-      console.log('朗读被中断或已停止，不继续播放');
+      if (isUserNavigating) {
+        console.log('用户主动切换/停止，正常中断，不重启');
+        return;
+      }
+      // 配置变更时自动重启
+      console.log('朗读被中断或已停止，自动重启朗读流程');
+      if (isPlaying) {
+        loadSettings();
+        setTimeout(() => {
+          startReading();
+        }, 100);
+      }
       return;
     }
 

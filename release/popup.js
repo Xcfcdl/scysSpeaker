@@ -205,4 +205,37 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Microsoft Neural中文名映射表
+  const msVoiceNameMap = {
+    'Microsoft Xiaoxiao Online (Natural)': '晓晓（女声，普通话）',
+    'Microsoft Yunxi Online (Natural)': '云希（男声，普通话）',
+    'Microsoft Xiaoyi Online (Natural)': '小依（女声，普通话）',
+    'Microsoft Yunjian Online (Natural)': '云健（男声，普通话）',
+    'Microsoft Yunxia Online (Natural)': '云夏（女声，普通话）',
+    'Microsoft Yunyang Online (Natural)': '云扬（男声，普通话）',
+    'Microsoft WanLung Online (Natural)': '云龙（男声，粤语）',
+    'Microsoft HiuGaai Online (Natural)': '晓佳（女声，粤语）',
+    'Microsoft HiuMaan Online (Natural)': '晓曼（女声，粤语）'
+  };
+  // 只保留Microsoft Neural系列中的中文音色
+  const msVoices = voices.filter(v => v.name.includes('Microsoft') && v.name.toLowerCase().includes('natural') && v.lang.startsWith('zh'));
+  msVoices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    // 中文名优先，否则用原名
+    opt.textContent = msVoiceNameMap[v.name] || `${v.lang} - ${v.name}`;
+    opt.setAttribute('data-lang', v.lang);
+    opt.title = v.name;
+    voiceType.insertBefore(opt, voiceType.firstChild);
+  });
+  // 系统本地TTS：只显示当前默认语音（即voices.find(v => v.default)）
+  const defaultVoice = voices.find(v => v.default && (v.lang.startsWith('zh') || v.lang.startsWith('zh-')));
+  if (defaultVoice && !msVoices.some(v => v.name === defaultVoice.name)) {
+    const opt = document.createElement('option');
+    opt.value = defaultVoice.name;
+    opt.textContent = `${defaultVoice.lang} - ${defaultVoice.name}（系统默认）`;
+    opt.setAttribute('data-lang', defaultVoice.lang);
+    voiceType.insertBefore(opt, voiceType.firstChild);
+  }
 }); 
